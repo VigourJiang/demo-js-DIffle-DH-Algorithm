@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="./math.min.js"></script>
+</head>
+<body>
+<div id="aText"></div>
+<div id="bText"></div>
+<div id="abResult"></div>
+<script>
+    math.config({
+      number: 'BigNumber',
+      precision: 128
+    });
+    
+    function calc(N, g, n) {
+        return math.evaluate(g + "^" + n + " mod " + N).toFixed(); 
+    };
+    
+    function calc2(N, x, n) {
+        return math.evaluate(x + "^" + n + " mod " + N).toFixed(); 
+    };
+    
+    function genNG(){
+        return {
+            N: 19,
+            g: 15,
+        };
+    }
+    function Step1(N, g) {
+        const SecretKeys = [];
+        const PublicKeys = [];
+        for(var i=0;i<50;i++){
+            var aSecretKey = Math.floor(Math.random()*N);//生成用户A的密钥（随机数，小于q）
+            SecretKeys.push(aSecretKey);
+            PublicKeys.push(calc(N, g, aSecretKey));//计算A的公开密钥
+        }
+
+        return {
+            SecretKeys,
+            PublicKeys,
+        }
+    }
+
+    function util_final_gen(N, myPrivates, thatPublics){    
+        let key = '';
+        for(var i=0;i<myPrivates.length;i++){
+            const part = calc2(N, thatPublics[i],myPrivates[i]);
+            key += part;
+        }
+        return key;
+    }
+    
+    // 浏览器发送第一个请求，请求生成通信密钥，该请求无参数。
+
+    // Server接收到该请求: 生成N、g、公钥、私钥，在Session中记录下该信息，并把N、g、公钥作为应答
+    const dhConfig = genNG();
+    const aMid = Step1(dhConfig.N, dhConfig.g);
+    
+    // 浏览器：计算自己的公钥、私钥、加密密钥，并向Server发送第二个请求，参数为浏览器的公钥
+    const bMid = Step1(dhConfig.N, dhConfig.g);
+    const retB = util_final_gen(dhConfig.N, bMid.SecretKeys, aMid.PublicKeys);
+
+    // Server接收到浏览器的第二个请求，并生成加密密钥，保存到Session
+    const retA = util_final_gen(dhConfig.N, aMid.SecretKeys, bMid.PublicKeys);
+
+    // 浏览器最终发送加密请求，Server从Session中获取加密密钥，进行解密。
+    
+    document.getElementById('aText').innerText = retA;
+    document.getElementById('bText').innerText = retB;
+    document.getElementById('abResult').innerText = (retA == retB);
+</script>
+    
+</body>
+</html>
